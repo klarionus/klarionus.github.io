@@ -223,6 +223,22 @@
   .port:hover,.port:focus-visible{color:var(--chrome);transform:translateY(-2px);outline:none}
   .port:focus-visible .plabel{text-decoration:underline;text-underline-offset:4px}
 
+
+  /* ── rotating man (WebGL) ─────────────────── */
+  #man{width:100%;height:100%;display:block;position:absolute;inset:0}
+  .man-status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.2em;color:var(--label);pointer-events:none}
+  .rail{position:absolute;left:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:18px;pointer-events:none;z-index:2}
+  .rail .num{font-size:clamp(26px,4vmin,40px);color:var(--chrome);text-shadow:none}
+  .rail .num .unit{color:var(--label)}
+  .rail .lab{margin-top:4px;color:var(--label);text-shadow:none;font-size:10px}
+  .rail .idx{color:var(--steel);text-shadow:none}
+  .case{position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:2;text-align:right;
+    font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.18em;color:var(--label);text-decoration:none;line-height:1.9}
+  .case b{display:block;font-family:"Space Grotesk",sans-serif;font-size:15px;letter-spacing:.06em;color:var(--chrome);font-weight:700}
+  .case:hover b{color:#fff}
+  @media(max-width:760px){.rail,.case{display:none}}
+
   @media (max-width:520px){
     .wordmark{letter-spacing:.3em}
     .io{gap:26px}
@@ -249,18 +265,15 @@
       <div class="grille" aria-hidden="true"></div>
     </header>
 
-    <section class="stage" id="stage" aria-label="Вращающийся куб со статистикой. Перетащите, чтобы повернуть.">
-      <div class="scene">
-        <div class="cube" id="cube">
-          <div class="face fx"><span class="idx">01 / EXP</span><div class="stat"><div class="num">08<span class="unit">лет</span></div><div class="lab">в 3D&nbsp;и&nbsp;motion</div></div></div>
-          <div class="face bk"><span class="idx">02 / OUT</span><div class="stat"><div class="num">240<span class="unit">+</span></div><div class="lab">проектов</div></div></div>
-          <div class="face rt"><span class="idx">03 / KIT</span><div class="stat"><div class="num">32</div><div class="lab">инструмента</div></div></div>
-          <div class="face lf"><span class="idx">04 / GPU</span><div class="stat"><div class="num">5.7<span class="unit">K</span></div><div class="lab">часов рендера</div></div></div>
-          <div class="face tp"><span class="idx">05 / NET</span><div class="stat"><div class="num">18</div><div class="lab">клиентов</div></div></div>
-          <div class="face bt"><span class="idx">06 / IDEA</span><div class="stat"><div class="num">∞</div><div class="lab">идей в работе</div></div></div>
-        </div>
-        <div class="shadow" aria-hidden="true"></div>
+    <section class="stage" id="stage" aria-label="Вращающаяся 3D-модель человека с экзоскелетом. Перетащите, чтобы повернуть.">
+      <canvas id="man" data-base="assets/man/"></canvas>
+      <div class="man-status" id="manStatus">LOADING MODEL</div>
+      <div class="rail" aria-hidden="true">
+        <div><span class="idx">01 / EXP</span><div class="num">08<span class="unit">лет</span></div><div class="lab">в 3D и motion</div></div>
+        <div><span class="idx">02 / OUT</span><div class="num">240<span class="unit">+</span></div><div class="lab">проектов</div></div>
+        <div><span class="idx">04 / GPU</span><div class="num">5.7<span class="unit">K</span></div><div class="lab">часов рендера</div></div>
       </div>
+      <a class="case" href="exo-xray/">CASE STUDY<b>EXO-XRAY →</b>UNIT 07 · HOUDINI / KARMA</a>
       <div class="hint">потяни, чтобы повернуть</div>
     </section>
 
@@ -285,60 +298,6 @@
 
   </main>
 
-<script>
-(function(){
-  var cube  = document.getElementById('cube');
-  var stage = document.getElementById('stage');
-
-  var rx = -22, ry = -32;      // current rotation
-  var dragging = false, moved = false;
-  var lastX = 0, lastY = 0;
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function apply(){
-    cube.style.transform = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
-  }
-
-  // continuous tumble so every face gets its moment
-  function tick(){
-    if(!dragging && !reduce){
-      rx += 0.16;
-      ry += 0.30;
-      apply();
-    }
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  function down(e){
-    dragging = true; moved = false;
-    stage.classList.add('touched');
-    lastX = (e.touches ? e.touches[0].clientX : e.clientX);
-    lastY = (e.touches ? e.touches[0].clientY : e.clientY);
-  }
-  function move(e){
-    if(!dragging) return;
-    var x = (e.touches ? e.touches[0].clientX : e.clientX);
-    var y = (e.touches ? e.touches[0].clientY : e.clientY);
-    var dx = x - lastX, dy = y - lastY;
-    if(Math.abs(dx) + Math.abs(dy) > 2) moved = true;
-    ry += dx * 0.4;
-    rx -= dy * 0.4;
-    lastX = x; lastY = y;
-    apply();
-    if(e.cancelable) e.preventDefault();
-  }
-  function up(){ dragging = false; }
-
-  stage.addEventListener('mousedown', down);
-  window.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', up);
-  stage.addEventListener('touchstart', down, {passive:true});
-  stage.addEventListener('touchmove', move, {passive:false});
-  window.addEventListener('touchend', up);
-
-  apply();
-})();
-</script>
+<script src="assets/man/viewer.js"></script>
 </body>
 </html>
