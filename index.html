@@ -3,308 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IVANESCO — 3D / MOTION / CREATIVE TECH</title>
+<title>3D SPACE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300&family=Space+Mono&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --void:#0b0c0d;
-    --graphite:#161718;
-    --ash:#2a2c2e;
-    --steel:#6c6f72;
-    --label:#8b8e91;
-    --aluminum:#b6b9bc;
-    --chrome:#e6e8ea;
-
-    /* machined face gradient */
-    --metal-a:#d7dadd;
-    --metal-b:#a8abae;
-    --metal-c:#84878a;
-    --metal-d:#b2b5b8;
-
-    --cube: clamp(190px, 34vmin, 300px);
-    --edge:1px;
-  }
-
   *{margin:0;padding:0;box-sizing:border-box}
-
   html,body{height:100%}
-
   body{
-    font-family:"Space Grotesk", "Helvetica Neue", Arial, sans-serif;
-    color:var(--chrome);
-    background:
-      radial-gradient(120% 90% at 50% 34%, #303234 0%, #1c1d1f 42%, #0d0e0f 82%, var(--void) 100%);
-    min-height:100dvh;
-    overflow:hidden;
-    position:relative;
-    -webkit-font-smoothing:antialiased;
+    background:radial-gradient(120% 90% at 50% 40%, #26282a 0%, #17181a 45%, #0c0d0e 85%, #0b0c0d 100%);
+    color:#e6e8ea;overflow:hidden;min-height:100dvh;
+    font-family:"Space Grotesk","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;
   }
-
-  /* fine film grain + vignette overlays */
-  body::before{
-    content:"";
-    position:fixed;inset:0;pointer-events:none;z-index:6;
-    background:radial-gradient(130% 100% at 50% 45%, transparent 52%, rgba(0,0,0,.55) 100%);
-    mix-blend-mode:multiply;
-  }
-  body::after{
-    content:"";
-    position:fixed;inset:0;pointer-events:none;z-index:6;opacity:.05;
-    background-image:radial-gradient(#fff 1px, transparent 1.1px);
-    background-size:3px 3px;
-  }
-
-  .frame{
-    position:relative;z-index:2;
-    height:100dvh;
-    display:grid;
-    grid-template-rows:auto 1fr auto;
-    padding:clamp(18px,3.4vw,40px);
-    gap:clamp(10px,2vh,26px);
-  }
-
-  /* ── top bar ─────────────────────────────── */
-  .topbar{
-    display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
-  }
-  .brand{display:flex;flex-direction:column;gap:6px}
-  .wordmark{
-    font-size:clamp(16px,2vw,20px);
-    font-weight:700;letter-spacing:.42em;
-    padding-left:.42em;
-    color:var(--chrome);
-  }
-  .tagline{
-    font-family:"Space Mono", monospace;
-    font-size:11px;letter-spacing:.22em;color:var(--label);
-    padding-left:.1em;
-  }
-  .meta{
-    text-align:right;
-    font-family:"Space Mono", monospace;
-    font-size:11px;line-height:1.9;letter-spacing:.14em;color:var(--label);
-  }
-  .meta b{color:var(--aluminum);font-weight:400}
-
-  /* speaker-grille signature strip */
-  .grille{
-    grid-column:1/-1;
-    height:18px;margin-top:2px;
-    -webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
-            mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
-    background-image:radial-gradient(var(--steel) 1.1px, transparent 1.6px);
-    background-size:9px 9px;
-    opacity:.55;
-  }
-
-  /* ── stage / cube ────────────────────────── */
-  .stage{
-    position:relative;
-    display:flex;align-items:center;justify-content:center;
-    perspective:1100px;
-    perspective-origin:50% 46%;
-    touch-action:none;
-    cursor:grab;
-  }
-  .stage:active{cursor:grabbing}
-
-  .scene{transform-style:preserve-3d;position:relative}
-
-  .cube{
-    position:relative;
-    width:var(--cube);height:var(--cube);
-    transform-style:preserve-3d;
-    will-change:transform;
-    transform:rotateX(-22deg) rotateY(-32deg);
-  }
-
-  .face{
-    position:absolute;inset:0;
-    display:flex;flex-direction:column;
-    justify-content:space-between;
-    padding:clamp(14px,2.6vmin,22px);
-    background:
-      repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px),
-      linear-gradient(152deg, var(--metal-a) 0%, var(--metal-b) 38%, var(--metal-c) 63%, var(--metal-d) 100%);
-    border:var(--edge) solid rgba(255,255,255,.28);
-    box-shadow:
-      inset 0 0 0 1px rgba(0,0,0,.16),
-      inset 0 14px 26px rgba(255,255,255,.25),
-      inset 0 -18px 30px rgba(0,0,0,.22);
-    overflow:hidden;
-  }
-  .face::after{ /* dot-grille corner accent, echoes the speaker mesh */
-    content:"";position:absolute;right:12px;bottom:12px;
-    width:40%;height:26%;opacity:.4;
-    -webkit-mask:linear-gradient(300deg,transparent 8%,#000 60%);
-            mask:linear-gradient(300deg,transparent 8%,#000 60%);
-    background-image:radial-gradient(#43464a 1px, transparent 1.5px);
-    background-size:6px 6px;
-  }
-
-  .idx{
-    font-family:"Space Mono", monospace;
-    font-size:10px;letter-spacing:.16em;
-    color:#4c4f52;
-    text-shadow:0 1px 0 rgba(255,255,255,.35);
-    position:relative;z-index:1;
-  }
-  .stat{position:relative;z-index:1}
-  .num{
-    font-family:"Space Mono", monospace;font-weight:700;
-    font-size:clamp(40px,9.4vmin,74px);
-    line-height:.82;letter-spacing:-.02em;
-    color:#26282a;
-    text-shadow:0 1px 0 rgba(255,255,255,.4), 0 -1px 1px rgba(0,0,0,.14);
-  }
-  .num .unit{font-size:.42em;color:#4a4d50;margin-left:.12em;letter-spacing:0}
-  .lab{
-    margin-top:10px;
-    font-size:11px;font-weight:500;letter-spacing:.2em;
-    text-transform:uppercase;
-    color:#3f4245;
-    text-shadow:0 1px 0 rgba(255,255,255,.3);
-  }
-
-  .fx{ transform:rotateY(  0deg) translateZ(calc(var(--cube)/2)) }
-  .bk{ transform:rotateY(180deg) translateZ(calc(var(--cube)/2)) }
-  .rt{ transform:rotateY( 90deg) translateZ(calc(var(--cube)/2)) }
-  .lf{ transform:rotateY(-90deg) translateZ(calc(var(--cube)/2)) }
-  .tp{ transform:rotateX( 90deg) translateZ(calc(var(--cube)/2)) }
-  .bt{ transform:rotateX(-90deg) translateZ(calc(var(--cube)/2)) }
-
-  /* floor shadow + reflected glow */
-  .shadow{
-    position:absolute;left:50%;top:calc(50% + var(--cube)*0.62);
-    width:calc(var(--cube)*1.15);height:calc(var(--cube)*0.34);
-    transform:translateX(-50%);
-    background:radial-gradient(ellipse at center, rgba(0,0,0,.6) 0%, transparent 70%);
-    filter:blur(6px);
-    z-index:-1;
-    pointer-events:none;
-  }
-
-  .hint{
-    position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
-    font-family:"Space Mono", monospace;
-    font-size:10px;letter-spacing:.2em;color:#54575a;
-    text-transform:uppercase;pointer-events:none;
-    transition:opacity .5s;
-  }
-  .stage.touched .hint{opacity:0}
-
-  /* ── bottom I/O ports (contacts) ─────────── */
-  .io{
-    position:relative;
-    display:flex;justify-content:center;
-    gap:clamp(30px,7vw,72px);
-    padding:20px clamp(20px,5vw,48px) 6px;
-    border-radius:14px 14px 4px 4px;
-    background:linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,0));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
-  }
-  .port{
-    display:flex;flex-direction:column;align-items:center;gap:9px;
-    text-decoration:none;color:var(--label);
-    transition:color .25s, transform .25s;
-  }
-  .port svg{
-    width:22px;height:22px;display:block;
-    stroke:currentColor;fill:none;stroke-width:1.5;
-    stroke-linecap:round;stroke-linejoin:round;
-    transition:stroke .25s;
-  }
-  .port .plabel{
-    font-family:"Space Mono", monospace;
-    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
-  }
-  .port:hover,.port:focus-visible{color:var(--chrome);transform:translateY(-2px);outline:none}
-  .port:focus-visible .plabel{text-decoration:underline;text-underline-offset:4px}
-
-
-  /* ── EXO-XRAY live frame: model + HUD ─────────────── */
-  .hudframe{position:relative;height:100%;max-height:100%;aspect-ratio:9/16;max-width:100%;
-    background:radial-gradient(80% 60% at 50% 45%, #1d1f21 0%, #0f1011 70%, #0b0c0d 100%);
-    border:1px solid rgba(255,255,255,.08);border-radius:6px;overflow:hidden;cursor:grab;
-    box-shadow:0 30px 80px rgba(0,0,0,.55)}
-  .hudframe:active{cursor:grabbing}
-  #man,#hud{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #hud{pointer-events:none}
-  #hud text{white-space:pre}
-  .man-status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.2em;color:var(--label);pointer-events:none}
-  .case{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;
-    font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.18em;color:var(--label);text-decoration:none;
-    background:rgba(11,12,13,.7);padding:5px 9px;border-radius:4px;opacity:0;transition:opacity .3s}
-  .hudframe:hover .case,.hudframe.touched .case{opacity:1}
-  .case:hover{color:var(--chrome)}
-  .stage{flex-direction:column}
-  .stage .hint{display:none}
-  .zoom{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:3}
-  .zoom button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(11,12,13,.65);
-    color:var(--chrome);font:400 17px/1 "Space Mono",monospace;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-  .zoom button:hover{border-color:rgba(255,255,255,.5)}
-  .hudframe{touch-action:none}
-  @media (max-width:520px){
-    .wordmark{letter-spacing:.3em}
-    .io{gap:26px}
-  }
-
-  @media (prefers-reduced-motion:reduce){
-    .hint{display:none}
-  }
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(130% 100% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%)}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;opacity:.05;
+    background-image:radial-gradient(#fff 1px, transparent 1.1px);background-size:3px 3px}
+  h1{position:fixed;top:clamp(22px,5vh,48px);left:0;right:0;z-index:3;text-align:center;pointer-events:none;
+    font-weight:300;font-size:clamp(20px,3.2vw,34px);letter-spacing:.5em;padding-left:.5em}
+  #space{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:1;cursor:grab;touch-action:none}
+  #space:active{cursor:grabbing}
+  #status{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;
+    font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.2em;color:#8b8e91}
 </style>
 </head>
 <body>
-  <main class="frame">
-
-    <header class="topbar">
-      <div class="brand">
-        <div class="wordmark">IVANESCO</div>
-        <div class="tagline">3D · MOTION · CREATIVE&nbsp;TECH</div>
-      </div>
-      <div class="meta">
-        <div>SN: <b>01–0001</b></div>
-        <div>MADE&nbsp;IN&nbsp;<b>KZ / RU</b></div>
-        <div><b>www.ivanesco.studio</b></div>
-      </div>
-      <div class="grille" aria-hidden="true"></div>
-    </header>
-
-    <section class="stage" id="stage" aria-label="Вращающаяся 3D-модель человека с экзоскелетом и HUD. Перетащите, чтобы повернуть.">
-      <div class="hudframe" id="hudFrame">
-        <canvas id="man" data-base="assets/man/"></canvas>
-        <svg id="hud" viewBox="-540 -960 1080 1920" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-        <div class="man-status" id="manStatus">LOADING</div>
-        <a class="case" href="exo-xray/">CASE STUDY · EXO-XRAY →</a>
-        <div class="zoom" aria-label="Приближение"><button id="zoomIn" type="button" aria-label="Приблизить">+</button><button id="zoomOut" type="button" aria-label="Отдалить">−</button></div>
-      </div>
-      <div class="hint">потяни, чтобы повернуть</div>
-    </section>
-
-    <footer class="io" aria-label="Контакты">
-      <a class="port" href="https://t.me/ivanesco" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4 3 11l6 2 2 6 3-4 4 3 3-14Z"/><path d="m9 13 8-6"/></svg>
-        <span class="plabel">Telegram</span>
-      </a>
-      <a class="port" href="mailto:hi@ivanesco.studio">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-        <span class="plabel">E-mail</span>
-      </a>
-      <a class="port" href="https://artstation.com/ivanesco" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16h11l-5.5-9.5L4 16Z"/><path d="m14 16 2 3.5h4L17.5 15"/><path d="M4 19.5h11"/></svg>
-        <span class="plabel">Artstation</span>
-      </a>
-      <a class="port" href="exo-xray/">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M12 6v12M9 9h6M9.5 12h5M10 15h4"/></svg>
-        <span class="plabel">EXO-XRAY</span>
-      </a>
-    </footer>
-
-  </main>
-
-<script src="assets/man/hud.js"></script>
+  <h1>3D SPACE</h1>
+  <canvas id="space" aria-label="Две вращающиеся 3D-модели: мужчина и женщина в экзоскелете. Перетащите, чтобы повернуть, колесо или щипок — приблизить."></canvas>
+  <div id="status">LOADING</div>
+<script src="assets/space.js"></script>
 </body>
 </html>
