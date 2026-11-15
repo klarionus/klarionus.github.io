@@ -60,9 +60,15 @@
     function acc(i) { var a = js.accessors[i], bv = js.bufferViews[a.bufferView], T = CT[a.componentType];
       var off = bo + (bv.byteOffset || 0) + (a.byteOffset || 0); return new T(buf.slice(off, off + a.count * NC[a.type] * T.BYTES_PER_ELEMENT)); }
     var p = js.meshes[0].primitives[0], pa = js.accessors[p.attributes.POSITION];
-    return { pos: acc(p.attributes.POSITION), nrm: p.attributes.NORMAL != null ? acc(p.attributes.NORMAL) : null, idx: acc(p.indices), min: pa.min, max: pa.max };
+    return { pos: acc(p.attributes.POSITION), nrm: p.attributes.NORMAL != null ? acc(p.attributes.NORMAL) : null, idx: acc(p.indices), pc: p.attributes._PIECE != null ? acc(p.attributes._PIECE) : null, min: pa.min, max: pa.max };
   }
   var total = FIG.length * PARTS.length, done = 0;
+  // exo disassembly: rigid 3x4 per piece per sampled frame (exported from Houdini), same 150-frame loop as the render
+  FIG.forEach(function (fg) {
+    Promise.all([fetch(fg.base + 'exo_anim.json').then(function (r) { if (!r.ok) throw 0; return r.json(); }),
+                 fetch(fg.base + 'exo_anim.bin').then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })])
+      .then(function (a) { fg.anim = a[0]; fg.animM = new Float32Array(a[1]); fg.cur = new Float32Array(a[0].pieces * 12); }).catch(function () {});
+  });
   FIG.forEach(function (fg) {
     PARTS.forEach(function (pt) {
       var part = { mode: pt.mode, color: pt.color, spec: pt.spec || 0, k: pt.k || 0, base: pt.base || 0, gpu: null };
@@ -74,10 +80,12 @@
           for (var q = 0; q < m.pos.length; q += 3) { var y = m.pos[q + 1]; if (y > 0.9 && y < 1.2) { sx += m.pos[q]; sz += m.pos[q + 2]; n++; } }
           if (n) fg.c = [sx / n, 0, sz / n];
         }
-        g.vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, g.vb); gl.bufferData(gl.ARRAY_BUFFER, m.pos, gl.STATIC_DRAW);
-        g.nb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, g.nb); gl.bufferData(gl.ARRAY_BUFFER, m.nrm || new Float32Array(m.pos.length), gl.STATIC_DRAW);
+        var usage = m.pc ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW;
+        g.vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, g.vb); gl.bufferData(gl.ARRAY_BUFFER, m.pos, usage);
+        g.nb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, g.nb); gl.bufferData(gl.ARRAY_BUFFER, m.nrm || new Float32Array(m.pos.length), usage);
         g.ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.idx, gl.STATIC_DRAW);
         g.count = m.idx.length; g.type = m.idx instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+        if (m.pc) { g.p0 = m.pos; g.n0 = m.nrm; g.pc = m.pc; g.pw = new Float32Array(m.pos.length); g.nw = new Float32Array(m.pos.length); }
         part.gpu = g;
       }).catch(function () {}).then(function () {
         done++; if (status) status.textContent = done < total ? 'LOADING ' + Math.round(100 * done / total) + '%' : '';
@@ -248,6 +256,31 @@
     });
   }
 
+
+  // blend the two sampled frames around loop frame F and move every exo vertex by its piece transform
+  function animate(fg, F) {
+    var A = fg.anim; if (!A) return false;
+    var u = ((F - 1) / A.step) % A.frames, i0 = Math.floor(u), i1 = (i0 + 1) % A.frames, w = u - i0;
+    var n = A.pieces * 12, M = fg.animM, C = fg.cur, o0 = i0 * n, o1 = i1 * n;
+    for (var k = 0; k < n; k++) C[k] = M[o0 + k] * (1 - w) + M[o1 + k] * w;
+    fg.parts.forEach(function (p) {
+      var g = p.gpu; if (!g || !g.pc) return;
+      var P = g.p0, N = g.n0, Q = g.pw, R = g.nw, pc = g.pc;
+      for (var v = 0, j = 0; v < pc.length; v++, j += 3) {
+        var b = pc[v] * 12, x = P[j], y = P[j + 1], z = P[j + 2];
+        Q[j] = C[b] * x + C[b + 1] * y + C[b + 2] * z + C[b + 3];
+        Q[j + 1] = C[b + 4] * x + C[b + 5] * y + C[b + 6] * z + C[b + 7];
+        Q[j + 2] = C[b + 8] * x + C[b + 9] * y + C[b + 10] * z + C[b + 11];
+        if (N) { x = N[j]; y = N[j + 1]; z = N[j + 2];
+          R[j] = C[b] * x + C[b + 1] * y + C[b + 2] * z; R[j + 1] = C[b + 4] * x + C[b + 5] * y + C[b + 6] * z; R[j + 2] = C[b + 8] * x + C[b + 9] * y + C[b + 10] * z; }
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, g.vb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, Q);
+      if (N) { gl.bindBuffer(gl.ARRAY_BUFFER, g.nb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, R); }
+    });
+    return true;
+  }
+
+  var FREEZE = (/#f(\d+)/.exec(location.hash) || [])[1] | 0;   // debug: #f75 holds loop frame 75
   // ---- loop
   var t0 = performance.now(), last = t0;
   function tick(now) {
@@ -271,6 +304,8 @@
     gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.uniformMatrix4fv(loc.uProj, false, PROJ); gl.uniformMatrix4fv(loc.uView, false, VIEW);
     gl.uniform1f(loc.uTime, (now - t0) / 1000);
+    var LF = FREEZE || 1 + (((now - t0) / 1000 * 30) % 150);
+    FIG.forEach(function (fg) { animate(fg, LF); });
     gl.enable(gl.DEPTH_TEST);
     // pass 1: opaque (exo, vessels) for both figures, pass 2: additive glass
     for (var pass = 0; pass < 2; pass++) {
