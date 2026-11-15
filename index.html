@@ -23,6 +23,8 @@
     font-weight:300;font-size:clamp(20px,3.2vw,34px);letter-spacing:.5em;padding-left:.5em}
   #space{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:1;cursor:grab;touch-action:none}
   #space:active{cursor:grabbing}
+  #hud{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+  #hud text{white-space:pre}
   #status{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;pointer-events:none;
     font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.2em;color:#8b8e91}
 </style>
@@ -30,6 +32,7 @@
 <body>
   <h1>3D SPACE</h1>
   <canvas id="space" aria-label="Две вращающиеся 3D-модели: мужчина и женщина в экзоскелете. Перетащите, чтобы повернуть, колесо или щипок — приблизить."></canvas>
+  <svg id="hud" aria-hidden="true"></svg>
   <div id="status">LOADING</div>
 <script src="assets/space.js"></script>
 </body>

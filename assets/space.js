@@ -22,8 +22,10 @@
   ];
   // each figure: folder, spin direction, centre (filled from the body bbox)
   var FIG = [
-    { base: 'assets/man/',   dir: 1,  c: [0, 0, 0], parts: [] },
-    { base: 'assets/woman/', dir: -1, c: [0, 0, 0], parts: [] }
+    { base: 'assets/man/',   dir: 1,  c: [0, 0, 0], parts: [], id: 'M-01',
+      anc: [[0.0, 1.79, 0.04], [0.0, 1.385, 0.125], [0.2164, 1.4847, -0.041], [-0.3288, 1.1535, -0.0624], [-0.1835, 0.96, -0.048], [0.183, 0.5052, -0.0826]] },
+    { base: 'assets/woman/', dir: -1, c: [0, 0, 0], parts: [], id: 'F-01',
+      anc: [[0.0946, 1.6206, 0.1423], [-0.087, 1.3273, 0.2102], [0.0878, 1.375, -0.0044], [-0.4579, 1.4501, 0.0251], [-0.1617, 0.8665, 0.0305], [0.1076, 0.4657, 0.0666]] }
   ];
 
   var VS = 'attribute vec3 aPos; attribute vec3 aNrm; uniform mat4 uProj, uView, uModel;' +
@@ -112,6 +114,140 @@
   }, { passive: false });
   window.addEventListener('touchend', function (e) { if (!e.touches || e.touches.length < 2) pinch = 0; if (!e.touches || !e.touches.length) drag = false; });
 
+
+  // ---- HUD (SVG overlay in CSS pixels): thin lines, callouts follow the rotating anchors, no corner brackets
+  var svg = document.getElementById('hud');
+  var NS = 'http://www.w3.org/2000/svg', INK = '#e6e8ea', DIM = '#8b8e91', ACC = '#ff5a1f';
+  var MONO = '"Space Mono", Consolas, monospace', SANS = '"Space Grotesk", "Helvetica Neue", sans-serif';
+  function el(tag, a, parent) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); (parent || svg).appendChild(e); return e; }
+  function txt(a, str, parent) { var t = el('text', a, parent); t.textContent = str; return t; }
+  function pad3(v) { v = Math.round(v); return (v < 10 ? '00' : v < 100 ? '0' : '') + v; }
+  var CALL = [
+    { t: 'NEURAL INTERFACE', v: function (th) { return 'EEG SYNC ' + (98.2 + 0.6 * Math.sin(th)).toFixed(1) + ' %'; } },
+    { t: 'STERNAL HUB S-01', v: function (th) { return 'LOAD ' + (412 + 9 * Math.sin(th * 2)).toFixed(1) + ' N'; } },
+    { t: 'SHOULDER ACT. L',  v: function (th) { return 'ROT ' + (37.5 + 2.5 * Math.sin(th * 3)).toFixed(1) + ' DEG'; } },
+    { t: 'ELBOW ACT. R',     v: function (th) { return 'TORQUE ' + (18.6 + 1.2 * Math.sin(th)).toFixed(1) + ' NM'; } },
+    { t: 'HIP ACT. R',       v: function (th) { return 'FLEX ' + (12.4 + 1.6 * Math.sin(th * 2)).toFixed(1) + ' DEG'; } },
+    { t: 'KNEE ACT. L',      v: function (th) { return 'LOAD ' + (61 + 2.2 * Math.sin(th * 3)).toFixed(1) + ' KG'; } }
+  ];
+  var H = null;
+  function buildHud() {
+    if (!svg) return;
+    H = {};
+    H.rule = el('line', { stroke: INK, 'stroke-width': 0.6, opacity: 0.5 });
+    H.tl = txt({ fill: DIM, 'font-family': MONO, 'font-size': 10, 'letter-spacing': 1.5 }, 'XR TRANSMISSION SCAN  120 kV  /  0.8 mA');
+    H.tr = txt({ fill: ACC, 'font-family': MONO, 'font-size': 10, 'letter-spacing': 1.5, 'text-anchor': 'end' }, '');
+    H.tr2 = txt({ fill: DIM, 'font-family': MONO, 'font-size': 10, 'letter-spacing': 1.5, 'text-anchor': 'end' }, 'LOOP SYNC  //  30 FPS');
+    // scan line
+    H.scan = el('g', {}); H.scanL = el('line', { stroke: ACC, 'stroke-width': 0.6, opacity: 0.55 }, H.scan);
+    H.scanT = txt({ fill: ACC, 'font-family': MONO, 'font-size': 9, 'letter-spacing': 1.2, 'text-anchor': 'end' }, '', H.scan);
+    // per-figure callouts + subject tag
+    FIG.forEach(function (fg) {
+      fg.h = { calls: [], tag: txt({ fill: INK, 'font-family': SANS, 'font-weight': 300, 'font-size': 13, 'letter-spacing': 3, 'text-anchor': 'middle' }, 'SUBJECT ' + fg.id),
+               tagL: el('line', { stroke: INK, 'stroke-width': 0.6, opacity: 0.6 }) };
+      CALL.forEach(function (c) {
+        var g = el('g', {});
+        fg.h.calls.push({ g: g, line: el('polyline', { fill: 'none', stroke: INK, 'stroke-width': 0.6, opacity: 0.75 }, g),
+          dot: el('circle', { r: 3.2, fill: 'none', stroke: ACC, 'stroke-width': 0.8 }, g),
+          t: txt({ fill: INK, 'font-family': SANS, 'font-weight': 300, 'font-size': 13, 'letter-spacing': 1.2 }, c.t, g),
+          v: txt({ fill: DIM, 'font-family': MONO, 'font-size': 9.5, 'letter-spacing': 1 }, '', g), def: c });
+      });
+    });
+    // system bars (bottom-left) + integration (bottom-centre) + EMG (bottom-right)
+    H.sys = ['C1-C7  SERVO ARRAY', 'T1-T12 SPINAL CARRIER', 'L1-L5  LUMBAR ACTUATOR', 'PELVIC MOUNT', 'FEMORAL STRUTS L/R', 'TIBIAL STRUTS L/R'].map(function (n) {
+      return { n: txt({ fill: DIM, 'font-family': MONO, 'font-size': 9, 'letter-spacing': 1 }, n),
+               box: el('rect', { fill: 'none', stroke: INK, 'stroke-width': 0.6, opacity: 0.6 }), fill: el('rect', { fill: INK, opacity: 0.85 }),
+               p: txt({ fill: DIM, 'font-family': MONO, 'font-size': 9 }, '') };
+    });
+    H.intT = txt({ fill: INK, 'font-family': SANS, 'font-weight': 300, 'font-size': 12, 'letter-spacing': 3 }, 'INTEGRATION');
+    H.intB = el('rect', { fill: 'none', stroke: INK, 'stroke-width': 0.6, opacity: 0.6 }); H.intF = el('rect', { fill: ACC, opacity: 0.9 });
+    H.intP = txt({ fill: INK, 'font-family': MONO, 'font-size': 10, 'text-anchor': 'end' }, '');
+    H.stat = txt({ fill: ACC, 'font-family': MONO, 'font-size': 10, 'letter-spacing': 1.5 }, '');
+    H.emgT = txt({ fill: DIM, 'font-family': MONO, 'font-size': 9, 'letter-spacing': 1 }, 'EMG  CH 1-4');
+    H.emg = [0, 1, 2, 3].map(function () { return el('polyline', { fill: 'none', stroke: INK, 'stroke-width': 0.6, opacity: 0.75 }); });
+  }
+  buildHud();
+  function A(e, a) { for (var k in a) e.setAttribute(k, a[k]); }
+  function proj(PV, m, p) {
+    var x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], z = m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14];
+    var cx = PV[0] * x + PV[4] * y + PV[8] * z + PV[12], cy = PV[1] * x + PV[5] * y + PV[9] * z + PV[13], cw = PV[3] * x + PV[7] * y + PV[11] * z + PV[15];
+    return [cx / cw, cy / cw, z];
+  }
+  function drawHud(PV, W, Hh, tsec) {
+    if (!H) return;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Hh);
+    var small = W < 640, F = 1 + ((tsec * 30) % 150), th = 2 * Math.PI * (F - 1) / 150;
+    var m = Math.max(16, W * 0.03), top = small ? 92 : Math.max(96, Hh * 0.115);
+    A(H.rule, { x1: m, x2: W - m, y1: top, y2: top });
+    A(H.tl, { x: m, y: top - 10 }); H.tl.style.display = small ? 'none' : '';
+    A(H.tr, { x: W - m, y: small ? top + 16 : top - 24 }); H.tr.textContent = 'TC LIVE   ' + (Math.floor((F - 1) / 15) % 2 ? '   ' : 'REC');
+    A(H.tr2, { x: W - m, y: top - 10 }); H.tr2.style.display = small ? 'none' : '';
+    var sy = top + 10 + (Hh - top - 20) * ((F - 1) / 150);
+    A(H.scanL, { x1: m, x2: W - m, y1: sy, y2: sy }); A(H.scanT, { x: W - m, y: sy - 5 }); H.scanT.textContent = 'SCAN ' + pad3(100 * (F - 1) / 150) + '%';
+    // callouts: man to the left edge, woman to the right edge
+    var showIdx = small ? [] : [0, 1, 2, 3, 4, 5];
+    FIG.forEach(function (fg, i) {
+      if (!fg.model) return;
+      var side = i === 0 ? -1 : 1, lx = side < 0 ? m : W - m;
+      var items = [];
+      fg.h.calls.forEach(function (c, k) {
+        var on = showIdx.indexOf(k) >= 0; c.g.style.display = on ? '' : 'none'; if (!on) return;
+        var p = proj(PV, fg.model, fg.anc[k]);
+        var cen = proj(PV, fg.model, [fg.c[0], fg.anc[k][1], fg.c[2]]);
+        items.push({ c: c, x: (p[0] * 0.5 + 0.5) * W, y: (0.5 - p[1] * 0.5) * Hh, back: p[2] < cen[2] - 0.01 });
+      });
+      items.sort(function (a, b) { return a.y - b.y; });
+      var minY = top + 40, gapY = small ? 34 : 44;
+      items.forEach(function (it) { it.ly = Math.max(minY, it.y); minY = it.ly + gapY; });
+      var maxY = Hh - (small ? 70 : 150);
+      for (var j = items.length - 1; j >= 0; j--) { if (items[j].ly > maxY) items[j].ly = maxY; maxY = items[j].ly - gapY; }
+      var tw = small ? 104 : 150;
+      items.forEach(function (it) {
+        var c = it.c, ex = lx - side * tw, kx = ex + (it.x - ex) * 0.25;
+        c.line.setAttribute('points', it.x + ',' + it.y + ' ' + kx + ',' + it.ly + ' ' + lx + ',' + it.ly);
+        A(c.dot, { cx: it.x, cy: it.y });
+        var tx = side < 0 ? lx : lx, anchor = side < 0 ? 'start' : 'end';
+        A(c.t, { x: tx, y: it.ly - 5, 'text-anchor': anchor, 'font-size': small ? 10.5 : 13 });
+        A(c.v, { x: tx, y: it.ly + 12, 'text-anchor': anchor, 'font-size': small ? 8.5 : 9.5 });
+        c.v.textContent = c.def.v(th);
+        c.g.setAttribute('opacity', it.back ? 0.35 : 1);
+      });
+      // subject tag under the feet
+      var f = proj(PV, fg.model, [fg.c[0], -0.04, fg.c[2]]), fx = (f[0] * 0.5 + 0.5) * W, fy = (0.5 - f[1] * 0.5) * Hh;
+      A(fg.h.tag, { x: fx, y: fy + 26, 'font-size': small ? 10.5 : 13 });
+      A(fg.h.tagL, { x1: fx - 46, x2: fx + 46, y1: fy + 10, y2: fy + 10 });
+    });
+    // bottom blocks (desktop only)
+    var showB = !small && Hh > 560;
+    var by = Hh - m - 6;
+    H.sys.forEach(function (s, i) {
+      [s.n, s.box, s.fill, s.p].forEach(function (e) { e.style.display = showB ? '' : 'none'; });
+      if (!showB) return;
+      var y = by - 40 - (5 - i) * 17, e = 0.55 + 0.45 * Math.sin(th + i * 1.05);
+      A(s.n, { x: m, y: y + 7 }); A(s.box, { x: m + 168, y: y, width: 110, height: 8 }); A(s.fill, { x: m + 170, y: y + 2, width: 106 * e, height: 4 });
+      A(s.p, { x: m + 286, y: y + 7 }); s.p.textContent = pad3(100 * e) + '%' + (Math.round(100 * e) >= 90 ? '  OK' : '  ..');
+    });
+    var ie = 0.72 + 0.24 * Math.sin(th), iw = Math.min(260, W * 0.17), ix = (W - iw) / 2, iy = top + 44;
+    [H.intT, H.intB, H.intF, H.intP, H.stat].forEach(function (e) { e.style.display = showB ? '' : 'none'; });
+    if (showB) {
+      A(H.intT, { x: ix, y: iy - 8 }); A(H.intB, { x: ix, y: iy, width: iw, height: 7 }); A(H.intF, { x: ix + 2, y: iy + 2, width: (iw - 4) * ie, height: 3 });
+      A(H.intP, { x: ix + iw, y: iy - 8 }); H.intP.textContent = pad3(100 * ie) + '%';
+      A(H.stat, { x: ix, y: iy + 22 });
+      H.stat.textContent = Math.round(100 * ie) >= 90 ? 'STATUS: SYNCHRONIZED' : (Math.floor((F - 1) / 5) % 2 ? 'STATUS: CALIBRATING _' : 'STATUS: CALIBRATING');
+    }
+    H.emgT.style.display = showB ? '' : 'none';
+    var ex0 = W - m - 220;
+    A(H.emgT, { x: ex0, y: by - 92 });
+    H.emg.forEach(function (pl, c) {
+      pl.style.display = showB ? '' : 'none'; if (!showB) return;
+      var pts = [], y0 = by - 70 + c * 18;
+      for (var k = 0; k <= 70; k++) { var x = ex0 + k * 3.14;
+        var v = Math.sin(x * 0.09 + th * 10 + c * 1.7) * (0.6 + 0.4 * Math.sin(x * 0.021 - th * 3 + c));
+        pts.push(x.toFixed(1) + ',' + (y0 - v * 6).toFixed(1)); }
+      pl.setAttribute('points', pts.join(' '));
+    });
+  }
+
   // ---- loop
   var t0 = performance.now(), last = t0;
   function tick(now) {
@@ -141,7 +277,7 @@
       FIG.forEach(function (fg, i) {
         var x = (i === 0 ? -1 : 1) * gap / 2;
         var model = mul(tr(x, 0, 0), mul(rotY(yaw * fg.dir), tr(-fg.c[0], 0, -fg.c[2])));
-        gl.uniformMatrix4fv(loc.uModel, false, model);
+        fg.model = model; gl.uniformMatrix4fv(loc.uModel, false, model);
         fg.parts.forEach(function (p) {
           if (!p.gpu || (p.mode === 2) !== (pass === 1)) return;
           if (p.mode === 2) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); } else { gl.disable(gl.BLEND); gl.depthMask(true); }
@@ -153,6 +289,7 @@
       });
     }
     gl.depthMask(true); gl.disable(gl.BLEND);
+    drawHud(mul(PROJ, VIEW), canvas.clientWidth, canvas.clientHeight, (now - t0) / 1000);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
