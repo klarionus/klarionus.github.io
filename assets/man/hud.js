@@ -81,13 +81,21 @@
   // ------------------------------------------------------------------ camera (matches /obj/CAM at frame 1)
   // dist 2.8 m, target 0.93 m, camera 0.32 m below target, aperture 24 / focal 50 on 1080 px width
   var CAM = { dist: 2.8, tgt: 0.93, drop: -0.32, k: 50 / 24 * 1080 };   // k: pixels per unit of x/z
+  // zoom state: z 0 = full figure (frame 1 of the render), 1 = close-up; focus = height the camera looks at
+  var Z = { z: 0, zt: 0, f: 0.93, ft: 0.93 };
+  var DIST_FAR = 2.8, DIST_NEAR = 0.75;
   function mul(a, b) { var o = new Array(16); for (var c = 0; c < 4; c++) for (var r = 0; r < 4; r++)
     o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3]; return o; }
   function rotY(a) { var c = Math.cos(a), s = Math.sin(a); return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]; }
   function rotX(a) { var c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]; }
   function tr(x, y, z) { return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]; }
-  var pitch = Math.atan2(-CAM.drop, CAM.dist);                    // camera looks up at the target
-  var VIEW = mul(rotX(-pitch), tr(0, -(CAM.tgt + CAM.drop), -CAM.dist));
+  var VIEW;
+  function updateView() {
+    var d = DIST_FAR + (DIST_NEAR - DIST_FAR) * Z.z;
+    var drop = CAM.drop * d / DIST_FAR;                         // keep the same slight low angle
+    var pitch = Math.atan2(-drop, d);
+    VIEW = mul(rotX(-pitch), tr(0, -(Z.f + drop), -d));
+  }
   // simple, explicit version of the above: x_ndc = x/(-z) * k / 540, y_ndc = y/(-z) * k / 960
   var PROJ = [CAM.k / 540, 0, 0, 0, 0, CAM.k / 960, 0, 0, 0, 0, -20.05 / 19.95, -1, 0, 0, -2 * 20 * 0.05 / 19.95, 0];
 
@@ -119,7 +127,8 @@
   var SYSN = ['C1-C7  SERVO ARRAY', 'T1-T12 SPINAL CARRIER', 'L1-L5  LUMBAR ACTUATOR', 'PELVIC MOUNT', 'FEMORAL STRUTS L/R', 'TIBIAL STRUTS L/R'];
   var sys = SYSN.map(function (n, i) {
     var y = -560 - i * 38;
-    text(-500, y, 17.2 * SYS, MONO, INK, n).setAttribute('xml:space', 'preserve');
+    var nt = text(-500, y, 17.2 * SYS, MONO, INK, n); nt.setAttribute('xml:space', 'preserve');
+    if (n.length > 18) { nt.setAttribute('textLength', 212); nt.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
     el('rect', { x: -280, y: Y(y + 16), width: 170, height: 14, fill: 'none', stroke: INK, 'stroke-width': 1.0 * LW }, g);
     return { fill: el('rect', { x: -277, y: Y(y + 13), width: 0, height: 8, fill: INK }),
              pct: text(-100, y, 19 * SYS, MONO, INK, '000%'), ok: text(-30, y, 19 * SYS, MONO, ACC, '..') };
@@ -164,21 +173,61 @@
 
   // ------------------------------------------------------------------ interaction
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var yaw = 0, spin = reduce ? 0.12 : 0.35, drag = false, lx = 0;   // rad/s
-  function down(x) { drag = true; lx = x; frame.classList.add('touched'); }
-  function move(x) { if (drag) { yaw += (x - lx) * 0.008; lx = x; } }
-  frame.addEventListener('mousedown', function (e) { down(e.clientX); });
-  window.addEventListener('mousemove', function (e) { move(e.clientX); });
+  var yaw = 0, spin = reduce ? 0.12 : 0.35, drag = false, lx = 0, ly = 0, pinch = 0, lastTap = 0;
+  function clampF(v) { return Math.max(0.15, Math.min(1.72, v)); }
+  function setZoom(v) { Z.zt = Math.max(0, Math.min(1, v)); if (Z.zt < 0.02) Z.ft = 0.93; }
+  function down(x, y) { drag = true; lx = x; ly = y; frame.classList.add('touched'); }
+  function move(x, y) {
+    if (!drag) return;
+    var r = frame.getBoundingClientRect();
+    yaw += (x - lx) * 0.008;
+    // vertical drag pans along the body when zoomed in (metres per pixel shrink as we get closer)
+    if (Z.zt > 0.02) Z.ft = clampF(Z.ft + (y - ly) / r.height * 2.0 * (1 - 0.7 * Z.z));
+    lx = x; ly = y;
+  }
+  frame.addEventListener('mousedown', function (e) { down(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { move(e.clientX, e.clientY); });
   window.addEventListener('mouseup', function () { drag = false; });
-  frame.addEventListener('touchstart', function (e) { down(e.touches[0].clientX); }, { passive: true });
-  frame.addEventListener('touchmove', function (e) { move(e.touches[0].clientX); if (e.cancelable) e.preventDefault(); }, { passive: false });
-  window.addEventListener('touchend', function () { drag = false; });
+  frame.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    // zoom towards the point under the cursor: aim the focus at that height
+    var r = frame.getBoundingClientRect(), py = (0.5 - (e.clientY - r.top) / r.height) * 1920;
+    if (e.deltaY < 0 && Z.zt < 1) Z.ft = clampF(Z.f + py / CAM.k * (DIST_FAR + (DIST_NEAR - DIST_FAR) * Z.z) * 0.35);
+    setZoom(Z.zt - e.deltaY * 0.0015);
+  }, { passive: false });
+  frame.addEventListener('dblclick', function (e) {
+    var r = frame.getBoundingClientRect(), py = (0.5 - (e.clientY - r.top) / r.height) * 1920;
+    if (Z.zt > 0.5) setZoom(0); else { Z.ft = clampF(Z.f + py / CAM.k * DIST_FAR); setZoom(0.85); }
+  });
+  function pd(t) { var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY; return Math.sqrt(dx * dx + dy * dy); }
+  frame.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) { pinch = pd(e.touches); drag = false; return; }
+    var now = Date.now(), t = e.touches[0];
+    if (now - lastTap < 300) { var r = frame.getBoundingClientRect(), py = (0.5 - (t.clientY - r.top) / r.height) * 1920;
+      if (Z.zt > 0.5) setZoom(0); else { Z.ft = clampF(Z.f + py / CAM.k * DIST_FAR); setZoom(0.85); } }
+    lastTap = now;
+    down(t.clientX, t.clientY);
+  }, { passive: true });
+  frame.addEventListener('touchmove', function (e) {
+    if (e.touches.length === 2 && pinch) { var d = pd(e.touches); setZoom(Z.zt + (d - pinch) / 260); pinch = d; }
+    else move(e.touches[0].clientX, e.touches[0].clientY);
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', function (e) { if (!e.touches || e.touches.length < 2) pinch = 0; if (!e.touches || !e.touches.length) drag = false; });
+  var zin = document.getElementById('zoomIn'), zout = document.getElementById('zoomOut');
+  if (zin) zin.addEventListener('click', function (e) { e.stopPropagation(); setZoom(Z.zt + 0.25); });
+  if (zout) zout.addEventListener('click', function (e) { e.stopPropagation(); setZoom(Z.zt - 0.25); });
+  [zin, zout].forEach(function (b) { if (b) { b.addEventListener('mousedown', function (e) { e.stopPropagation(); }); b.addEventListener('touchstart', function (e) { e.stopPropagation(); }, { passive: true }); } });
 
   // ------------------------------------------------------------------ loop
+  if (/zoom/.test(location.hash)) { Z.ft = Z.f = 1.55; setZoom(0.85); Z.z = 0.85; }   // deep link: #zoom → close-up
   var t0 = performance.now(), last = t0;
   function tick(now) {
     var dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (!drag) yaw += spin * dt;
+    if (!drag) yaw += spin * dt * (1 - 0.6 * Z.z);
+    var ez = 1 - Math.exp(-dt * 6);
+    Z.z += (Z.zt - Z.z) * ez; Z.f += (Z.ft - Z.f) * ez;
+    updateView();
     var tsec = (now - t0) / 1000;
     var F = 1 + ((tsec * 30) % 150);                     // houdini frame in the loop
     var th = 2 * Math.PI * (F - 1) / 150;

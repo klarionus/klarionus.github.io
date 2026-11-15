@@ -242,6 +242,11 @@
   .case:hover{color:var(--chrome)}
   .stage{flex-direction:column}
   .stage .hint{display:none}
+  .zoom{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:3}
+  .zoom button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(11,12,13,.65);
+    color:var(--chrome);font:400 17px/1 "Space Mono",monospace;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .zoom button:hover{border-color:rgba(255,255,255,.5)}
+  .hudframe{touch-action:none}
   @media (max-width:520px){
     .wordmark{letter-spacing:.3em}
     .io{gap:26px}
@@ -274,6 +279,7 @@
         <svg id="hud" viewBox="-540 -960 1080 1920" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
         <div class="man-status" id="manStatus">LOADING</div>
         <a class="case" href="exo-xray/">CASE STUDY · EXO-XRAY →</a>
+        <div class="zoom" aria-label="Приближение"><button id="zoomIn" type="button" aria-label="Приблизить">+</button><button id="zoomOut" type="button" aria-label="Отдалить">−</button></div>
       </div>
       <div class="hint">потяни, чтобы повернуть</div>
     </section>
